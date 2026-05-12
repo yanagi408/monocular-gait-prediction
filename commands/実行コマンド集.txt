@@ -1,0 +1,87 @@
+実行コマンド集
+
+取得(zcap5-2.py)
+python zcap5-2.py --input_glob "C:\mypro\videos\*.mp4" --out_dir outputs_final --debug_stages
+
+　・保存ディレクトリ
+	--out_dir で保存場所を変更
+
+ ・処理過程毎にcsv保存する場合
+	--debug_stages　をコマンドに加える
+
+
+データ確認(zcap_draw3d.py)
+python zcap_draw3d.py --csv_glob "outputs_hitobetu_riku/*_processed.csv" --out_dir outputs_hitobetu_riku/qa --views 3d yz --fps 5
+
+　・保存ディレクトリ
+	--out_dir で保存場所を変更
+
+ データ拡張(augment_processed.py)
+A：フレームごとに付与
+　　骨格全体に同一の3次元並進Δを加える剛体並進。
+　　骨長は機械誤差レベルの小ささで保持。
+
+B：乱数取って付与→平滑化
+　　骨格全体に同一の3次元並進Δを加える剛体並進。
+　　骨長は機械誤差レベルの小ささで保持。
+
+D：posは補間、contact/supportは最近傍で追従。
+　補間により骨長が数mm変化
+
+　微小ノイズ
+python augment_processed.py --in_glob "outputs_jinbutu/*_processed.csv" --out_dir outputs_jinbutu_A --n 1 --modes A --noise_scale 0.5 --x_scale 0.1 --y_scale 0.5 --z_scale 1.0
+
+　低周波ドリフト
+python augment_processed.py --in_glob "outputs_jinbutu/*_processed.csv" --out_dir outputs_jinbutu_B --n 1 --modes B --drift_scale 1.0 --drift_win 81 --drift_cap_k 2.5 --x_scale 0.05 --y_scale 0.3 --z_scale 1.0
+
+
+　時間伸縮
+python augment_processed.py --in_glob "outputs_jinbutu/*_processed.csv" --out_dir outputs_jinbutu_D --n 1 --modes D --time_warp_rate 0.03
+
+　・複数CSV入力対応
+	--in_csvs, --in_glob
+
+　・A/B/D を個別指定可
+	--modes A 
+
+　・Dは離散列は最近傍追従　frame/time_sec 再生成
+
+　・contact 整合チェック
+	--contact_check
+
+　・デフォルトON）で 元CSVに合わせてパラメータ探索
+	--contact_calibrate
+
+　・探索で得た best params をログに出力
+	--verbose_params
+
+
+学習(zmodel5.py)
+
+　学習１(hitobetu:複数被験者)
+python zmodel5.py --csv_glob "outputs_hitobetu/*_processed.csv" --out_dir outputs_hitobetu --val_csv "outputs_hitobetu_riku/data_riku_val*_processed.csv" --test_csv "outputs_hitobetu_riku/data_riku_test*_processed.csv" --hidden 128 --layers 1 --dropout 0.3 --batch_size 128 --lr 5e-5 --weight_decay 5e-4 --patience 20 --lambda_contact 3.0 --support_class_weight_auto --support_smooth_min_run 3 --eval_test_end --horizon 10
+
+　学習2(jinbutu:単一被験者特化)
+python zmodel5.py --csv_glob "outputs_jinbutu/*_processed.csv" --out_dir outputs_jinbutu --val_csv "outputs_jinbutu/data_riku_val*_processed.csv" --test_csv "outputs_jinbutu/data_riku_test*_processed.csv" --hidden 128 --layers 1 --dropout 0.3 --batch_size 128 --lr 5e-5 --weight_decay 5e-4 --patience 20 --lambda_contact 3.0 --support_class_weight_auto --support_smooth_min_run 3 --eval_test_end --horizon 10
+
+　・保存ディレクトリ
+	--out_dir で保存場所を変更
+
+　・学習に支持脚入力を含める場合
+	--use_support_input　をコマンドに加える
+
+　・予測長別学習
+	--horizon の数字部分を10、20．30と変化させて行う
+
+
+評価(eval_zmodel3.py)
+python eval_zmodel3.py --out_dir outputs_hitobetu --which test --plot_losses --plot_sample_ts --gif --view yz --gif_fps 5 --support_min_run 3 --event_win 2 --z_tol 0.05 --run_tag A_tes
+
+　・保存ディレクトリ
+	--out_dir で保存場所を変更
+
+　・test/valの変更
+	--which でtest/valを変更
+
+　・実験タグの変更
+	--run_tag で実験タグ変更

@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+.venv/
+venv/
+env/
+
+.ipynb_checkpoints/
+.DS_Store
+Thumbs.db
+
+# large files
+*.pt
+*.pth
+*.pkl
+*.pickle
+*.zip
+*.mp4
+
+# generated outputs
+outputs/
+outputs_*/
+qa/
+
+# secrets
+.env
